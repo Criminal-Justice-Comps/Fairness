@@ -12,15 +12,18 @@ TO RUN (as of 1.30.20)
     2: run the command: python3 measurefairness.py
 '''
 import json
-
-X_FEATURE_NAME = 'sex'     # ex./ "race"
-X_TGT_VALUE = 'Female'    # ex./ "black"
+#we will probably need to calculate multiple attributes separately and compare
+#with some time of statistical comparison
+X_FEATURE_NAME = 'race'     # ex./ "race"
+X_TGT_VALUE = 'African-American'    # ex./ "black"
 LOAD_FILENAME = 'simpleBaselineData.json'
+X_CMPR_VALUE = 'Caucasian'      #ex./ "white"
+
 
 def main():
     all_data = get_data()
     #all_data_dict = json.loads(all_data)
-    rand_baseline_guesses = all_data['foolish']
+    rand_baseline_guesses = all_data['compas']
     print(type(rand_baseline_guesses[0]))
 
     all_people = all_data['people']
@@ -52,11 +55,11 @@ def get_confusion_matrix(all_data,guesses):
         x = person[X_FEATURE_NAME]
         if (c == 0) and (x == X_TGT_VALUE):     # a: if (c=0 and x=0)
             cnfsn_matrix[0] += 1
-        elif (c == 0) and (x != X_TGT_VALUE):   # b: if (c=0 and x=1)
+        elif (c == 0) and (x == X_CMPR_VALUE):   # b: if (c=0 and x=1)
             cnfsn_matrix[1] += 1
         elif (c == 1) and (x == X_TGT_VALUE):   # c: if (c=1 and x=0)
             cnfsn_matrix[2] += 1
-        elif (c == 1) and (x != X_TGT_VALUE):   # d: if (c=1 and x=1)
+        elif (c == 1) and (x == X_CMPR_VALUE):   # d: if (c=1 and x=1)
             cnfsn_matrix[3] += 1
 
     return cnfsn_matrix
@@ -91,14 +94,14 @@ def get_lr_pos(confusion_matrix):
         return ("ERR: Divide by 0")
     return sens/(1-spec)
 
-# Returns: likelihood ratio (specificity)/(sensitivity)
+# Returns: likelihood ratio (1-specificity)/(sensitivity)
 # A dataset has disparate impact if lr(C,X) <= 0.8
 def get_lr(confusion_matrix):
     sens = get_sensitivity(confusion_matrix)
     spec = get_specificity(confusion_matrix)
     if sens==0:
         return ("ERR: Divide by 0")
-    return spec/sens
+    return (1-spec)/sens #should be the inverse of specificity over sensitivity
 
 
 
