@@ -14,10 +14,10 @@ TO RUN (as of 1.30.20)
 import json
 #we will probably need to calculate multiple attributes separately and compare
 #with some time of statistical comparison
-X_FEATURE_NAME = 'race'     # ex./ "race"
-X_TGT_VALUE = 'African-American'    # ex./ "black"
+X_FEATURE_NAME = 'age'     # ex./ "race"
+X_TGT_VALUE = 34    # ex./ "black"
 LOAD_FILENAME = 'simpleBaselineData.json'
-X_CMPR_VALUE = 'Caucasian'      #ex./ "white"
+X_CMPR_VALUE = 34      #ex./ "white"
 
 
 def main():
@@ -27,9 +27,11 @@ def main():
     print(type(rand_baseline_guesses[0]))
 
     all_people = all_data['people']
-
-
-    mtrx = get_confusion_matrix(all_people,rand_baseline_guesses)
+    
+    if (X_FEATURE_NAME == 'age'):
+        mtrx = get_age_confusion_matrix(all_people, rand_baseline_guesses)
+    else:
+        mtrx = get_confusion_matrix(all_people,rand_baseline_guesses)
     print(mtrx)
     print("Target Value:", X_TGT_VALUE)
     print("Goal is value <= 1.25, where value =", get_lr_pos(mtrx))
@@ -64,6 +66,22 @@ def get_confusion_matrix(all_data,guesses):
 
     return cnfsn_matrix
 
+def get_age_confusion_matrix(all_data, guesses):
+    cnfsn_matrix = [0,0,0,0]    # [a,b,c,d]
+    for i in range(len(all_data)):
+        person = all_data[i]
+        c = guesses[i]
+        x = int(person[X_FEATURE_NAME])
+        if (c == 0) and (x <= X_TGT_VALUE):     # a: if (c=0 and x=0)
+            cnfsn_matrix[0] += 1
+        elif (c == 0) and (x > X_CMPR_VALUE):   # b: if (c=0 and x=1)
+            cnfsn_matrix[1] += 1
+        elif (c == 1) and (x <= X_TGT_VALUE):   # c: if (c=1 and x=0)
+            cnfsn_matrix[2] += 1
+        elif (c == 1) and (x > X_CMPR_VALUE):   # d: if (c=1 and x=1)
+            cnfsn_matrix[3] += 1
+
+    return cnfsn_matrix
 
 # Of all people with attribute (X=1), what % are predicted recidivists (C=1)?
 # Input: confusion_matrix = [a, b, c, d]
