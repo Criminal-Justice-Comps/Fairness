@@ -14,12 +14,12 @@ TO RUN
     2: run the command: python3 measurefairness.py
 '''
 import json
-#we will probably need to calculate multiple attributes separately and compare
-#with some time of statistical comparison
+
 X_FEATURE_NAME = 'race'     # ex./ "race"
 X_TGT_VALUE = 'African-American'    # ex./ "black"
-LOAD_FILENAME = 'simpleBaselineData.json'
-X_CMPR_VALUE = 'Asian'     #ex./ "white"
+# LOAD_FILENAME = 'simpleBaselineData.json'
+LOAD_FILENAME = 'DecisionTreesData.json'
+X_CMPR_VALUE = 'Caucasian'     #ex./ "white"
 
 
 def main():
@@ -48,6 +48,8 @@ def display_results(people, guesses):
     else:
         mtrx = get_confusion_matrix(people,guesses)
     print("Confusion Matrix Vals:", mtrx)
+    print(X_TGT_VALUE, "total count:", mtrx[0]+mtrx[2])
+    print(X_CMPR_VALUE, "total count:", mtrx[1]+mtrx[3])
     print("Feature:", X_FEATURE_NAME)
     print("Testing:", X_TGT_VALUE, "as compared to", X_CMPR_VALUE)
 
