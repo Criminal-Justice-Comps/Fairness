@@ -35,11 +35,10 @@ def main():
         display_results(all_people, guesses)
         print_line()
 
+        print("Finding the Fairness Threshold")
         mtrx = get_confusion_matrix(all_people, guesses)
-        th = get_fairness_threshold(mtrx) + 1
-        print("FAIRNESS THRESHOLD:", th)
-        t_matrix = [mtrx[0]+th, mtrx[1]-th, mtrx[2], mtrx[3]]
-        show_pass_fail(t_matrix)
+        th = get_fairness_threshold(mtrx)
+        print("TH Val:", th)
         print_line()
 
 
@@ -168,46 +167,52 @@ def test_fairness(matrix):
     if (lr_pos <= 1.25) or (lr > 0.8):
         return True
     else:
-        print("LR POS:", lr_pos)
-        print("LR:", lr)
         return False
 
+def print_stats(mtrx):
+    x_tgt_pred_recid = mtrx[2]/(mtrx[0]+mtrx[2])
+    x_tgt_pred_recid = float(int(x_tgt_pred_recid*10000))/100
+
+    x_cmpr_pred_recid = mtrx[3]/(mtrx[1]+mtrx[3])
+    x_cmpr_pred_recid = float(int(x_cmpr_pred_recid*10000))/100
+    print("Of all",X_TGT_VALUE,"people:", x_tgt_pred_recid, "% were predicted to recidivate.")
+    print("Of all",X_CMPR_VALUE,"people:", x_cmpr_pred_recid, "% were predicted to recidivate.")
+
+
 def get_fairness_threshold(confusion_matrix):
-    mtrx = confusion_matrix
-    max_val = max(mtrx[0],mtrx[1])
-    a_is_larger_than_b = (max_val == mtrx[0])
+    new_mtrx = confusion_matrix
+    passed_tests = test_fairness(new_mtrx)
+    th = 0 # threshold value
 
-    threshold = 0
-    transformed_mtrx = mtrx
-    passed_tests = test_fairness(transformed_mtrx)
-    while (threshold < max_val) and passed_tests:
-        threshold += 1
-        if a_is_larger_than_b:
-            transformed_mtrx[0] += threshold
-            transformed_mtrx[1] -= threshold
-        else:
-            transformed_mtrx[0] -= threshold
-            transformed_mtrx[1] += threshold
+    while (new_mtrx[1] > 0) and (new_mtrx[2] > 0) and passed_tests:
+        # increase "a" while descreasing "c"
+        #new_mtrx[0] += 1
+        #new_mtrx[2] -= 1
+        # TODO -- do we want to do both at the same time? Or separate them?
+        # increase "d" while descreasing "b"
+        new_mtrx[3] += 1
+        new_mtrx[1] -= 1
 
-        passed_tests = test_fairness(transformed_mtrx)
-        if not (threshold < max_val):
-            print("NOT LESS")
-        if not (passed_tests):
-            print("FAILED TEST")
+        th += 1 # increase threshold value
+        passed_tests = test_fairness(new_mtrx)
 
     if not passed_tests:
-        return threshold
-        show_pass_fail(transformed_mtrx)
+        show_pass_fail(new_mtrx)
+        print_stats(new_mtrx)
+        return th
     else:
         return -1
     '''
+    Disparate Impact is calculated by the following fraction:
     1 - a/(a+c)
     ---------
       d/(b+d)
 
      ^ to get the value of this fraction to decrease, either:
         - decrease the numerator (by increasing specificity)
+            --> make "c" smaller
         - increase the denominator (by increasing sensitivity)
+            --> make "b" smaller
 
           # a: if (c=0 and x=0)
           # b: if (c=0 and x=1)
@@ -224,6 +229,16 @@ def get_fairness_threshold(confusion_matrix):
         c = Recid -or- not recid (guess /prediction)
         x = target -or- compare value
 
+        c is our prediction, and x is an unchangeable attribute of our data.
+        So the count of people in each column, must stay the same
+            ie the sums: a+c and b+d must be unchanged
+        To create "more" disparate impact we want to:
+            - simultanously increase "a" while descreasing "c"
+            - simultanously increase "d" while descreasing "b"
+        An example:
+            - X_FEATURE_NAME = 'sex'  X_TGT_VALUE = 'Male' X_CMPR_VALUE = 'Female'
+            - Of the men, predict fewer people to recidivate
+            - Of the women, predict more people to recidivate
     '''
 
 
