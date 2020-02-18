@@ -8,7 +8,7 @@ disparate impact: untentional bias which occurs when a selection process has
                   appears to be neutral
 
 TO RUN
-    1: Change X_FEATURE_NAME, X_TGT_VALUE, and X_CMPR_VALUE to desired values
+    1: Change X_FEATURE_NAME, X_MAJORITY_CLASS, and X_MINORITY_CLASS to desired values
     2: Ensure JSON file (LOAD_FILENAME) is a dictionary in format:
             {'people': [-list of all people-], 'random': [-guesses from random algorithm-], ...}
     2: run the command: python3 measurefairness.py
@@ -16,10 +16,10 @@ TO RUN
 import json
 
 X_FEATURE_NAME = 'sex'     # ex./ "race"
-X_TGT_VALUE = 'Male'    # ex./ "black"
+X_MAJORITY_CLASS = 'Male'    # ex./ "black"
 # LOAD_FILENAME = 'simpleBaselineData.json'
 LOAD_FILENAME = 'DecisionTreesData.json'
-X_CMPR_VALUE = 'Female'     #ex./ "white"
+X_MINORITY_CLASS = 'Female'    #ex./ "white"
 
 
 def main():
@@ -30,16 +30,18 @@ def main():
 
     for alg in alg_names: # test for all algorithms
         print_line()
+        print("TESTING:", alg)
         guesses = all_data[alg]
         all_people = all_data['people']
         display_results(all_people, guesses)
         print_line()
-
-        print("Finding the Fairness Threshold")
+        '''
+        print("Finding the Fairness Threshold:")
         mtrx = get_confusion_matrix(all_people, guesses)
         th = get_fairness_threshold(mtrx)
         print("TH Val:", th)
         print_line()
+        '''
 
 
 def print_line():
@@ -53,10 +55,10 @@ def display_results(people, guesses):
     else:
         mtrx = get_confusion_matrix(people,guesses)
     print("Confusion Matrix Vals:", mtrx)
-    print(X_TGT_VALUE, "total count:", mtrx[0]+mtrx[2])
-    print(X_CMPR_VALUE, "total count:", mtrx[1]+mtrx[3])
+    print(X_MINORITY_CLASS, "total count:", mtrx[0]+mtrx[2])
+    print(X_MAJORITY_CLASS, "total count:", mtrx[1]+mtrx[3])
     print("Feature:", X_FEATURE_NAME)
-    print("Testing:", X_TGT_VALUE, "as compared to", X_CMPR_VALUE)
+    print("Testing:", X_MAJORITY_CLASS, "as compared to", X_MINORITY_CLASS)
 
     show_pass_fail(mtrx)
 
@@ -92,13 +94,13 @@ def get_confusion_matrix(all_data,guesses):
         person = all_data[i]
         c = guesses[i]
         x = person[X_FEATURE_NAME]
-        if (c == 0) and (x == X_TGT_VALUE):     # a: if (c=0 and x=0)
+        if (c == 0) and (x == X_MINORITY_CLASS):     # a: if (c=0 and x=0)
             cnfsn_matrix[0] += 1
-        elif (c == 0) and (x == X_CMPR_VALUE):   # b: if (c=0 and x=1)
+        elif (c == 0) and (x == X_MAJORITY_CLASS):   # b: if (c=0 and x=1)
             cnfsn_matrix[1] += 1
-        elif (c == 1) and (x == X_TGT_VALUE):   # c: if (c=1 and x=0)
+        elif (c == 1) and (x == X_MINORITY_CLASS):   # c: if (c=1 and x=0)
             cnfsn_matrix[2] += 1
-        elif (c == 1) and (x == X_CMPR_VALUE):   # d: if (c=1 and x=1)
+        elif (c == 1) and (x == X_MAJORITY_CLASS):   # d: if (c=1 and x=1)
             cnfsn_matrix[3] += 1
 
     return cnfsn_matrix
@@ -111,13 +113,14 @@ def get_age_confusion_matrix(all_data, guesses):
         person = all_data[i]
         c = guesses[i]
         x = int(person[X_FEATURE_NAME])
-        if (c == 0) and (x <= X_TGT_VALUE):     # a: if (c=0 and x=0)
+        # TODO : discuss with Javin that these were backwards
+        if (c == 0) and (x <= X_MINORITY_CLASS):     # a: if (c=0 and x=0)
             cnfsn_matrix[0] += 1
-        elif (c == 0) and (x > X_CMPR_VALUE):   # b: if (c=0 and x=1)
+        elif (c == 0) and (x > X_MAJORITY_CLASS):   # b: if (c=0 and x=1)
             cnfsn_matrix[1] += 1
-        elif (c == 1) and (x <= X_TGT_VALUE):   # c: if (c=1 and x=0)
+        elif (c == 1) and (x <= X_MINORITY_CLASS):   # c: if (c=1 and x=0)
             cnfsn_matrix[2] += 1
-        elif (c == 1) and (x > X_CMPR_VALUE):   # d: if (c=1 and x=1)
+        elif (c == 1) and (x > X_MAJORITY_CLASS):   # d: if (c=1 and x=1)
             cnfsn_matrix[3] += 1
 
     return cnfsn_matrix
@@ -161,6 +164,8 @@ def get_lr(confusion_matrix):
     return (1-spec)/sens #should be the inverse of specificity over sensitivity
 
 
+
+# POSSIBLY Delete all functions below here:
 def test_fairness(matrix):
     lr_pos = get_lr_pos(matrix)
     lr = get_lr(matrix)
@@ -175,8 +180,8 @@ def print_stats(mtrx):
 
     x_cmpr_pred_recid = mtrx[3]/(mtrx[1]+mtrx[3])
     x_cmpr_pred_recid = float(int(x_cmpr_pred_recid*10000))/100
-    print("Of all",X_TGT_VALUE,"people:", x_tgt_pred_recid, "% were predicted to recidivate.")
-    print("Of all",X_CMPR_VALUE,"people:", x_cmpr_pred_recid, "% were predicted to recidivate.")
+    print("Of all",X_MAJORITY_CLASS,"people:", x_tgt_pred_recid, "% were predicted to recidivate.")
+    print("Of all",X_MINORITY_CLASS,"people:", x_cmpr_pred_recid, "% were predicted to recidivate.")
 
 
 def get_fairness_threshold(confusion_matrix):
@@ -236,7 +241,7 @@ def get_fairness_threshold(confusion_matrix):
             - simultanously increase "a" while descreasing "c"
             - simultanously increase "d" while descreasing "b"
         An example:
-            - X_FEATURE_NAME = 'sex'  X_TGT_VALUE = 'Male' X_CMPR_VALUE = 'Female'
+            - X_FEATURE_NAME = 'sex'  X_MAJORITY_CLASS = 'Male' X_MINORITY_CLASS = 'Female'
             - Of the men, predict fewer people to recidivate
             - Of the women, predict more people to recidivate
     '''
