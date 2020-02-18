@@ -15,11 +15,11 @@ TO RUN
 '''
 import json
 
-X_FEATURE_NAME = 'race'     # ex./ "race"
-X_TGT_VALUE = 'African-American'    # ex./ "black"
+X_FEATURE_NAME = 'sex'     # ex./ "race"
+X_TGT_VALUE = 'Male'    # ex./ "black"
 # LOAD_FILENAME = 'simpleBaselineData.json'
 LOAD_FILENAME = 'DecisionTreesData.json'
-X_CMPR_VALUE = 'Caucasian'     #ex./ "white"
+X_CMPR_VALUE = 'Female'     #ex./ "white"
 
 
 def main():
@@ -30,10 +30,16 @@ def main():
 
     for alg in alg_names: # test for all algorithms
         print_line()
-        print("Algorithm:", alg)
         guesses = all_data[alg]
         all_people = all_data['people']
         display_results(all_people, guesses)
+        print_line()
+
+        mtrx = get_confusion_matrix(all_people, guesses)
+        th = get_fairness_threshold(mtrx) + 1
+        print("FAIRNESS THRESHOLD:", th)
+        t_matrix = [mtrx[0]+th, mtrx[1]-th, mtrx[2], mtrx[3]]
+        show_pass_fail(t_matrix)
         print_line()
 
 
@@ -83,7 +89,7 @@ def get_data():
 #          dataset where: a=(X=0,C=0), b=(X=1,C=0), c=(X=0,C=1),d=(X=1,C=1)
 def get_confusion_matrix(all_data,guesses):
     cnfsn_matrix = [0,0,0,0]    # [a,b,c,d]
-    for i in range(len(all_data)):
+    for i in range(len(guesses)):
         person = all_data[i]
         c = guesses[i]
         x = person[X_FEATURE_NAME]
@@ -154,6 +160,71 @@ def get_lr(confusion_matrix):
     if sens==0:
         return 0 # ("ERR: Divide by 0")
     return (1-spec)/sens #should be the inverse of specificity over sensitivity
+
+
+def test_fairness(matrix):
+    lr_pos = get_lr_pos(matrix)
+    lr = get_lr(matrix)
+    if (lr_pos <= 1.25) or (lr > 0.8):
+        return True
+    else:
+        print("LR POS:", lr_pos)
+        print("LR:", lr)
+        return False
+
+def get_fairness_threshold(confusion_matrix):
+    mtrx = confusion_matrix
+    max_val = max(mtrx[0],mtrx[1])
+    a_is_larger_than_b = (max_val == mtrx[0])
+
+    threshold = 0
+    transformed_mtrx = mtrx
+    passed_tests = test_fairness(transformed_mtrx)
+    while (threshold < max_val) and passed_tests:
+        threshold += 1
+        if a_is_larger_than_b:
+            transformed_mtrx[0] += threshold
+            transformed_mtrx[1] -= threshold
+        else:
+            transformed_mtrx[0] -= threshold
+            transformed_mtrx[1] += threshold
+
+        passed_tests = test_fairness(transformed_mtrx)
+        if not (threshold < max_val):
+            print("NOT LESS")
+        if not (passed_tests):
+            print("FAILED TEST")
+
+    if not passed_tests:
+        return threshold
+        show_pass_fail(transformed_mtrx)
+    else:
+        return -1
+    '''
+    1 - a/(a+c)
+    ---------
+      d/(b+d)
+
+     ^ to get the value of this fraction to decrease, either:
+        - decrease the numerator (by increasing specificity)
+        - increase the denominator (by increasing sensitivity)
+
+          # a: if (c=0 and x=0)
+          # b: if (c=0 and x=1)
+          # c: if (c=1 and x=0)
+          # d: if (c=1 and x=1)
+
+
+             | x=0 | x=1
+          -----------
+        c=0  |  a  |  b
+             |     |
+        c=1  |  c  |  d
+
+        c = Recid -or- not recid (guess /prediction)
+        x = target -or- compare value
+
+    '''
 
 
 
