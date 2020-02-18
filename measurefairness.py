@@ -14,6 +14,7 @@ TO RUN
     2: run the command: python3 measurefairness.py
 '''
 import json
+import csv
 
 X_FEATURE_NAME = 'sex'     # ex./ "race"
 X_MAJORITY_CLASS = 'Male'    # ex./ "black"
