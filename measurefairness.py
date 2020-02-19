@@ -17,10 +17,10 @@ import json
 import csv
 
 X_FEATURE_NAME = 'sex'     # ex./ "race"
-X_MAJORITY_CLASS = 'Male'    # ex./ "black"
+X_MAJORITY_CLASS = 'Male'    # ex./ "white"
 # LOAD_FILENAME = 'simpleBaselineData.json'
-LOAD_FILENAME = 'DecisionTreesData.json'
-X_MINORITY_CLASS = 'Female'    #ex./ "white"
+LOAD_FILENAME = 'ANNPredictions.json'
+X_MINORITY_CLASS = 'Female'    #ex./ "black"
 
 
 def main():
@@ -32,8 +32,14 @@ def main():
     for alg in alg_names: # test for all algorithms
         print_line()
         print("TESTING:", alg)
-        guesses = all_data[alg]
         all_people = all_data['people']
+        guesses = []
+        if alg == "ANN":
+            for person in all_people:
+                guesses.append(int(person["prediction"])) 
+        else:
+            guesses = all_data[alg]
+            
         display_results(all_people, guesses)
         print_line()
 
@@ -53,7 +59,7 @@ def display_results(people, guesses):
     print(X_MINORITY_CLASS, "total count:", mtrx[0]+mtrx[2])
     print(X_MAJORITY_CLASS, "total count:", mtrx[1]+mtrx[3])
     print("Feature:", X_FEATURE_NAME)
-    print("Testing:", X_MAJORITY_CLASS, "as compared to", X_MINORITY_CLASS)
+    print("Testing:", X_MINORITY_CLASS, "as compared to", X_MAJORITY_CLASS)
 
     show_pass_fail(mtrx)
 
