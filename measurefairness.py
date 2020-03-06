@@ -16,15 +16,8 @@ TO RUN
 import json
 import csv
 
-'''
-X_FEATURE_NAME = 'sex'     # ex./ "race"
-X_MAJORITY_CLASS = 'Male'    # ex./ "white"
-# LOAD_FILENAME = 'simpleBaselineData.json'
-LOAD_FILENAME = 'simpleBaselineData.json'
-X_MINORITY_CLASS = 'Female'    #ex./ "black"
-'''
-X_FEATURE_NAME = ['sex','race','race', 'race','age','age','age','age']    
-X_MAJORITY_CLASS = ['Male','Caucasian','Caucasian','Caucasian',30,40,50,60]   
+X_FEATURE_NAME = ['sex','race','race', 'race','age','age','age','age']
+X_MAJORITY_CLASS = ['Male','Caucasian','Caucasian','Caucasian',30,40,50,60]
 LOAD_FILENAME = 'DecisionTreesData.json'
 X_MINORITY_CLASS = ['Female', 'African-American','Hispanic','Other',30,40,50,60]
 
@@ -46,15 +39,19 @@ def main():
         guesses = []
         if alg == "ANN":
             for person in all_people:
-                guesses.append(int(person["prediction"])) 
+                guesses.append(int(person["prediction"]))
         else:
-            guesses = all_data[alg]
+            temp_guesses = all_data[alg]
+            guesses = []
+            for i in temp_guesses:
+                guesses.append(i[10])
+            print(guesses)
 
         get_results(all_people, guesses, alg)
 
         filename = 'DisparateImpactReports/'+ alg + 'DisparateImpact.csv'
         make_csv_results_report(filename)
-        
+
         display_results(all_people, guesses)
         print_line()
 
@@ -63,15 +60,16 @@ def main():
 def print_line():
     print("----------------------------")
 
-# Input:
-# Output: 
+# Input: confusion matrix
+# Output: liklihood ratio (float value), 0 or 1 (true or false depending on
+#                                           whether disparate impact is present)
 def get_disparate_impact(matrix):
     lr = get_lr(matrix)
     if (lr < 0.8):
         return lr, 1
     else:
         return lr, 0
-    
+
 # Input: a list of people represented as dicts, an int list of guesses (0s and 1s)
 # Output: adds to ALL_RESULTS
 def get_results(people, guesses, alg):
@@ -80,14 +78,14 @@ def get_results(people, guesses, alg):
             mtrx = get_age_confusion_matrix(people, guesses, i)
         else:
             mtrx = get_confusion_matrix(people,guesses, i)
-        
+
         lr, has_disparate = get_disparate_impact(mtrx)
-        
+
         # ['algorithm','feature','X_MAJORITY_CLASS','X_MINORITY_CLASS','X_MAJORITY_COUNT',
         #  'X_MINORITY_COUNT','a','b','c','d','dis_impact_val','has_dis_impact']
         results = [alg, X_FEATURE_NAME[i], X_MAJORITY_CLASS[i], X_MINORITY_CLASS[i],
                    mtrx[1]+mtrx[3], mtrx[0]+mtrx[2], mtrx[0], mtrx[1], mtrx[2], mtrx[3], lr, has_disparate]
-        
+
         ALL_RESULTS.append(results)
 
 # borrowed from split-cat-num.py
@@ -102,8 +100,8 @@ def make_filestring(data):
         string += "\n"
     return string
 
-# Input:
-# Output: 
+# Input: file name (string)
+# Output: creates a csv file
 def make_csv_results_report(filename, create_filestring=True):
     # writes a csv file in `filename` based containing `data`
     if create_filestring:
@@ -112,7 +110,7 @@ def make_csv_results_report(filename, create_filestring=True):
         string = ALL_RESULTS
     with open(filename, 'w') as file:
         file.write(string)
-        
+
 
 # Input: a list of people represented as dicts, an int list of guesses (0s and 1s)
 # Output: print statements regarding the details of the tests performed
@@ -168,6 +166,7 @@ def get_confusion_matrix(all_data,guesses,index):
         person = all_data[i]
         c = guesses[i]
         x = person[X_FEATURE_NAME[index]]
+        # print(c, x)
         if (c == 0) and (x == X_MINORITY_CLASS[index]):     # a: if (c=0 and x=0)
             cnfsn_matrix[0] += 1
         elif (c == 0) and (x == X_MAJORITY_CLASS[index]):   # b: if (c=0 and x=1)
@@ -241,102 +240,3 @@ def get_lr(confusion_matrix):
 
 if __name__ == "__main__":
     main()
-
-
-'''
-########
-Notes on Disparate Impact
-########
-    Disparate Impact is calculated by the following fraction:
-    1 - a/(a+c)
-    ---------
-      d/(b+d)
-
-     ^ to get the value of this fraction to decrease, either:
-        - decrease the numerator (by increasing specificity)
-            --> make "c" smaller
-        - increase the denominator (by increasing sensitivity)
-            --> make "b" smaller
-
-          # a: if (c=0 and x=0)
-          # b: if (c=0 and x=1)
-          # c: if (c=1 and x=0)
-          # d: if (c=1 and x=1)
-
-
-             | x=0 | x=1
-          -----------
-        c=0  |  a  |  b
-             |     |
-        c=1  |  c  |  d
-
-        c = Recid -or- not recid (guess /prediction)
-        x = target -or- compare value
-
-        c is our prediction, and x is an unchangeable attribute of our data.
-        So the count of people in each column, must stay the same
-            ie the sums: a+c and b+d must be unchanged
-        To create "more" disparate impact we want to:
-            - simultanously increase "a" while descreasing "c"
-            - simultanously increase "d" while descreasing "b"
-        An example:
-            - X_FEATURE_NAME = 'sex'  X_MAJORITY_CLASS = 'Male' X_MINORITY_CLASS = 'Female'
-            - Of the men, predict fewer people to recidivate
-            - Of the women, predict more people to recidivate
-'''
-
-'''
-########
-We are scrapping this, but keeping it in the comments just in case
-########
-
-
-print("Finding the Fairness Threshold:")
-mtrx = get_confusion_matrix(all_people, guesses)
-th = get_fairness_threshold(mtrx)
-print("TH Val:", th)
-print_line()
-
-
-def test_fairness(matrix):
-    lr_pos = get_lr_pos(matrix)
-    lr = get_lr(matrix)
-    if (lr_pos <= 1.25) or (lr > 0.8):
-        return True
-    else:
-        return False
-
-def print_stats(mtrx):
-    x_tgt_pred_recid = mtrx[2]/(mtrx[0]+mtrx[2])
-    x_tgt_pred_recid = float(int(x_tgt_pred_recid*10000))/100
-
-    x_cmpr_pred_recid = mtrx[3]/(mtrx[1]+mtrx[3])
-    x_cmpr_pred_recid = float(int(x_cmpr_pred_recid*10000))/100
-    print("Of all",X_MAJORITY_CLASS,"people:", x_tgt_pred_recid, "% were predicted to recidivate.")
-    print("Of all",X_MINORITY_CLASS,"people:", x_cmpr_pred_recid, "% were predicted to recidivate.")
-
-
-def get_fairness_threshold(confusion_matrix):
-    new_mtrx = confusion_matrix
-    passed_tests = test_fairness(new_mtrx)
-    th = 0 # threshold value
-
-    while (new_mtrx[1] > 0) and (new_mtrx[2] > 0) and passed_tests:
-        # increase "a" while descreasing "c"
-        #new_mtrx[0] += 1
-        #new_mtrx[2] -= 1
-        # TODO -- do we want to do both at the same time? Or separate them?
-        # increase "d" while descreasing "b"
-        new_mtrx[3] += 1
-        new_mtrx[1] -= 1
-
-        th += 1 # increase threshold value
-        passed_tests = test_fairness(new_mtrx)
-
-    if not passed_tests:
-        show_pass_fail(new_mtrx)
-        print_stats(new_mtrx)
-        return th
-    else:
-        return -1
-'''
